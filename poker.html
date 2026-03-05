@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Single Draw — Wanna Bet?</title>
+<link rel="stylesheet" href="../css/game-shell.css">
+</style>
+</head>
+<body>
+<div class="ad-slot" style="margin:0;border-left:none;border-right:none;border-top:none">AD SLOT — 728x90</div>
+<div class="game-header">
+  <a class="header-back" href="../index.html">&#8592; LOBBY</a>
+  <div class="header-title">&#9824; SINGLE DRAW</div>
+  <div class="sync-badge">SYNCED</div>
+  <a class="header-logo" href="../index.html">WANNA BET?</a>
+</div>
+<div class="game-page">
+  <div class="ad-slot">AD SLOT — 728x90</div>
+  <div class="game-table" style="gap:20px">
+    <div class="game-subtitle">One Card From A Full Deck · Every 90s</div>
+    <div id="card-wrap" style="min-height:150px;display:flex;align-items:center;justify-content:center;">
+      <div class="playing-card face-down" id="the-card">
+        <div class="card-rank" id="card-rank"></div>
+        <div class="card-suit" id="card-suit"></div>
+        <div class="card-corner" id="card-corner-tl"></div>
+        <div class="card-corner-br" id="card-corner-br"></div>
+      </div>
+    </div>
+    <div class="result-main" id="card-result" style="font-size:56px;letter-spacing:4px">—</div>
+    <div class="result-label" id="card-label">Waiting for deal...</div>
+    <div class="timer-wrap">
+      <div class="timer-label"><span>NEXT DEAL</span><span id="timer-s">90</span>s</div>
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
+  </div>
+  <div class="history-strip" id="history-strip"></div>
+  <div class="ad-slot" style="margin-top:16px">AD SLOT — 300x250</div>
+</div>
+<div class="game-footer">
+  <div class="game-footer-text">No real money. Problem Gambling: <a href="tel:18005224700">1-800-522-4700</a></div>
+</div>
+<script src="../js/sync.js"></script>
+<script>
+'use strict';
+const S = window.wbSync;
+const IV = window.WB.POKER;
+let lastRi = -1;
+const history = [];
+
+function tick() {
+  const ri = S.roundIdx(IV);
+  const prog = S.roundProgress(IV);
+  const secs = S.secsLeft(IV);
+  document.getElementById('timer-s').textContent = secs;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = (100-prog*100)+'%';
+  fill.className = 'timer-fill'+(secs<=5?' danger':secs<=15?' warning':'');
+
+  if (ri !== lastRi) {
+    lastRi = ri;
+    const card = S.getPokerCard(ri);
+    const isRed = S.RED_SUITS.has(card.suit);
+    const el = document.getElementById('the-card');
+    const rn = S.rankName(card.rank);
+    const sym = S.SUIT_SYMS[card.suit];
+
+    el.className = 'playing-card face-up ' + (isRed ? 'red-suit' : 'black-suit');
+    document.getElementById('card-rank').textContent = rn;
+    document.getElementById('card-suit').textContent = sym;
+    document.getElementById('card-corner-tl').textContent = rn;
+    document.getElementById('card-corner-br').textContent = rn;
+
+    const res = document.getElementById('card-result');
+    res.textContent = rn + ' ' + sym;
+    res.className = 'result-main ' + (isRed ? 'red' : 'black');
+    document.getElementById('card-label').textContent =
+      S.rankName(card.rank) + ' of ' + card.suit.charAt(0).toUpperCase() + card.suit.slice(1);
+
+    history.unshift(rn + sym);
+    if (history.length > 20) history.pop();
+    renderHistory();
+  }
+}
+
+function renderHistory() {
+  document.getElementById('history-strip').innerHTML =
+    history.map(h => {
+      const isRed = h.includes('♥') || h.includes('♦');
+      return `<span class="hist-pill ${isRed?'r':''}">${h}</span>`;
+    }).join('');
+}
+
+tick(); setInterval(tick, 500);
+</script>
+</body>
+</html>

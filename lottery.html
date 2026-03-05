@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lottery — Wanna Bet?</title>
+<link rel="stylesheet" href="../css/game-shell.css">
+<style>
+.lottery-panel { background:rgba(0,0,0,0.3); border:1px solid rgba(245,166,35,0.12); border-radius:10px; padding:18px 16px; width:100%; max-width:540px; }
+.lottery-name { font-family:var(--ff-sign); font-size:22px; font-weight:700; letter-spacing:3px; color:var(--wendys-yellow); margin-bottom:4px; }
+.lottery-desc { font-family:var(--ff-mono); font-size:8px; letter-spacing:2px; color:rgba(255,255,255,0.3); text-transform:uppercase; margin-bottom:14px; }
+.balls-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; min-height:56px; }
+.ball-sep { width:12px; height:3px; background:rgba(245,166,35,0.2); border-radius:2px; flex-shrink:0; }
+.lottery-foot { display:flex; align-items:center; justify-content:space-between; font-family:var(--ff-mono); font-size:9px; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px; margin-top:10px; }
+.cd-text { color:rgba(255,255,255,0.25); }
+.cd-val { color:var(--neon-green); font-size:18px; text-shadow:0 0 8px #00ff88; }
+</style>
+</head>
+<body>
+<div class="ad-slot" style="margin:0;border-left:none;border-right:none;border-top:none">AD SLOT — 728x90</div>
+<div class="game-header">
+  <a class="header-back" href="../index.html">&#8592; LOBBY</a>
+  <div class="header-title">&#127921; LOTTERY</div>
+  <div class="sync-badge">SYNCED</div>
+  <a class="header-logo" href="../index.html">WANNA BET?</a>
+</div>
+<div class="game-page">
+  <div class="ad-slot">AD SLOT — 728x90</div>
+  <div class="game-table" style="gap:16px">
+    <div class="game-subtitle">Three Live Draws — Universal Time Sync</div>
+    <div class="lottery-panel">
+      <div class="lottery-name">PICK 3</div>
+      <div class="lottery-desc">Three digits · 0–9 each · New draw every 70s</div>
+      <div class="balls-row" id="pick3-balls"></div>
+      <div class="lottery-foot">
+        <span class="cd-text">Next draw</span>
+        <span class="cd-val" id="cd-p3">—</span>s
+      </div>
+    </div>
+    <div class="lottery-panel">
+      <div class="lottery-name">PICK 5</div>
+      <div class="lottery-desc">Five numbers · 1–39 · Sorted · No repeats</div>
+      <div class="balls-row" id="pick5-balls"></div>
+      <div class="lottery-foot">
+        <span class="cd-text">Next draw</span>
+        <span class="cd-val" id="cd-p5">—</span>s
+      </div>
+    </div>
+    <div class="lottery-panel">
+      <div class="lottery-name">POWERBALL</div>
+      <div class="lottery-desc">Five white (1–69) + red Powerball (1–26)</div>
+      <div class="balls-row" id="pb-balls"></div>
+      <div class="lottery-foot">
+        <span class="cd-text">Next draw</span>
+        <span class="cd-val" id="cd-pb">—</span>s
+      </div>
+    </div>
+  </div>
+  <div class="ad-slot" style="margin-top:16px">AD SLOT — 300x250</div>
+</div>
+<div class="game-footer">
+  <div class="game-footer-text">No real money. Problem Gambling: <a href="tel:18005224700">1-800-522-4700</a></div>
+</div>
+<script src="../js/sync.js"></script>
+<script>
+'use strict';
+const S = window.wbSync;
+const IV = window.WB.LOTTERY;
+const lastRi = { p3:-1, p5:-1, pb:-1 };
+
+function makeBall(num, cls) {
+  const b = document.createElement('div');
+  b.className = 'lotto-ball ' + cls;
+  b.textContent = num;
+  return b;
+}
+
+function renderLottery() {
+  const ri = S.roundIdx(IV);
+  document.getElementById('cd-p3').textContent = S.secsLeft(IV);
+  document.getElementById('cd-p5').textContent = S.secsLeft(IV);
+  document.getElementById('cd-pb').textContent = S.secsLeft(IV);
+
+  if (ri !== lastRi.p3) {
+    lastRi.p3 = ri;
+    const el = document.getElementById('pick3-balls');
+    el.innerHTML = '';
+    S.getPick3(ri).forEach((n,i) => { const b=makeBall(n,'white'); b.style.animationDelay=(i*100)+'ms'; el.appendChild(b); });
+  }
+  if (ri !== lastRi.p5) {
+    lastRi.p5 = ri;
+    const el = document.getElementById('pick5-balls');
+    el.innerHTML = '';
+    S.getPick5(ri).forEach((n,i) => { const b=makeBall(n,'white'); b.style.animationDelay=(i*100)+'ms'; el.appendChild(b); });
+  }
+  if (ri !== lastRi.pb) {
+    lastRi.pb = ri;
+    const el = document.getElementById('pb-balls');
+    el.innerHTML = '';
+    const d = S.getPowerball(ri);
+    d.white.forEach((n,i) => { const b=makeBall(n,'white'); b.style.animationDelay=(i*100)+'ms'; el.appendChild(b); });
+    const sep = document.createElement('div'); sep.className='ball-sep'; el.appendChild(sep);
+    const pb = makeBall(d.pb,'powerball'); pb.style.animationDelay='600ms'; el.appendChild(pb);
+  }
+}
+
+renderLottery();
+setInterval(renderLottery, 500);
+</script>
+</body>
+</html>

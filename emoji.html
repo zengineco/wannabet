@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Random Emoji — Wanna Bet?</title>
+<link rel="stylesheet" href="../css/game-shell.css">
+<style>
+.emoji-grid { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:420px; margin:0 auto; }
+.eg-item { font-size:32px; opacity:0.18; transition:all 0.3s; cursor:default; padding:4px; border-radius:6px; border:1px solid transparent; }
+.eg-item.active { opacity:1; border-color:rgba(245,166,35,0.4); background:rgba(245,166,35,0.08); transform:scale(1.15); }
+.eg-item.recent { opacity:0.45; }
+.zengine-badge { font-family:var(--ff-mono); font-size:8px; letter-spacing:3px; color:rgba(255,184,28,0.4); text-transform:uppercase; margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="ad-slot" style="margin:0;border-left:none;border-right:none;border-top:none">AD SLOT — 728x90</div>
+<div class="game-header">
+  <a class="header-back" href="../index.html">&#8592; LOBBY</a>
+  <div class="header-title">&#10024; RANDOM EMOJI</div>
+  <div class="sync-badge">SYNCED</div>
+  <a class="header-logo" href="../index.html">WANNA BET?</a>
+</div>
+<div class="game-page">
+  <div class="ad-slot">AD SLOT — 728x90</div>
+  <div class="game-table" style="gap:18px">
+    <div class="game-subtitle">21 Emojis · One Selected · Every 130s — A Zengine Original</div>
+    <div class="emoji-display" id="emoji-main" style="font-size:100px">&#10024;</div>
+    <div class="result-main" id="emoji-name" style="font-size:40px;letter-spacing:5px;min-height:52px">—</div>
+    <div class="result-label" id="emoji-cat"></div>
+    <div class="emoji-grid" id="emoji-grid"></div>
+    <div class="zengine-badge">&#9733; A Zengine Original &#9733;</div>
+    <div class="timer-wrap">
+      <div class="timer-label"><span>NEXT DRAW</span><span id="timer-s">130</span>s</div>
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
+  </div>
+  <div class="history-strip" id="history-strip"></div>
+  <div class="ad-slot" style="margin-top:16px">AD SLOT — 300x250</div>
+</div>
+<div class="game-footer">
+  <div class="game-footer-text">No real money. Problem Gambling: <a href="tel:18005224700">1-800-522-4700</a> · A Zengine Original production · <a href="https://zengine.site" target="_blank">zengine.site</a></div>
+</div>
+<script src="../js/sync.js"></script>
+<script>
+'use strict';
+const S = window.wbSync;
+const IV = window.WB.EMOJI;
+let lastRi = -1;
+const recentHistory = [];
+
+function buildEmojiGrid() {
+  const g = document.getElementById('emoji-grid');
+  S.EMOJI_LIST.forEach((item, i) => {
+    const span = document.createElement('span');
+    span.className = 'eg-item'; span.id = 'eg-'+i;
+    span.textContent = item.e; span.title = item.name;
+    g.appendChild(span);
+  });
+}
+
+function tick() {
+  const ri = S.roundIdx(IV);
+  const prog = S.roundProgress(IV);
+  const secs = S.secsLeft(IV);
+  document.getElementById('timer-s').textContent = secs;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = (100-prog*100)+'%';
+  fill.className = 'timer-fill'+(secs<=5?' danger':secs<=15?' warning':'');
+
+  if (ri !== lastRi) {
+    lastRi = ri;
+    const item = S.getEmoji(ri);
+    const idx  = S.EMOJI_LIST.indexOf(item);
+
+    const main = document.getElementById('emoji-main');
+    main.classList.remove('pop'); void main.offsetWidth;
+    main.textContent = item.e; main.classList.add('pop');
+
+    document.getElementById('emoji-name').textContent = item.name;
+    document.getElementById('emoji-cat').textContent  = item.cat.toUpperCase();
+
+    // Update grid highlights
+    document.querySelectorAll('.eg-item').forEach((el,i) => {
+      el.className = 'eg-item' + (i===idx ? ' active' : recentHistory.slice(0,3).includes(i) ? ' recent' : '');
+    });
+
+    recentHistory.unshift(idx);
+    if (recentHistory.length > 10) recentHistory.pop();
+    renderHistory();
+  }
+}
+
+function renderHistory() {
+  document.getElementById('history-strip').innerHTML =
+    recentHistory.map(i => {
+      const item = S.EMOJI_LIST[i];
+      return `<span class="hist-pill o">${item.e} ${item.name}</span>`;
+    }).join('');
+}
+
+buildEmojiGrid(); tick(); setInterval(tick, 500);
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coin Toss — Wanna Bet?</title>
+<link rel="stylesheet" href="../css/game-shell.css">
+<style>
+.streak-block { text-align:center; font-family:var(--ff-mono); font-size:9px; letter-spacing:3px; color:rgba(255,255,255,0.3); text-transform:uppercase; }
+#streak-num { display:block; font-family:var(--ff-sign); font-size:64px; font-weight:700; color:var(--neon-green); line-height:1; text-shadow:0 0 20px rgba(0,255,136,0.4); }
+</style>
+</head>
+<body>
+<div class="ad-slot" style="margin:0;border-left:none;border-right:none;border-top:none">AD SLOT — 728x90</div>
+<div class="game-header">
+  <a class="header-back" href="../index.html">&#8592; LOBBY</a>
+  <div class="header-title">&#127921; COIN TOSS</div>
+  <div class="sync-badge">SYNCED</div>
+  <a class="header-logo" href="../index.html">WANNA BET?</a>
+</div>
+<div class="game-page">
+  <div class="ad-slot">AD SLOT — 728x90</div>
+  <div class="game-table" style="gap:18px">
+    <div class="game-subtitle">Heads or Tails · Streak Tracked · Every 110s</div>
+    <div class="coin-wrap">
+      <div class="coin" id="the-coin">
+        <div class="coin-face coin-heads">H</div>
+        <div class="coin-face coin-tails">T</div>
+      </div>
+    </div>
+    <div class="result-main" id="coin-result" style="font-size:60px;letter-spacing:8px">—</div>
+    <div class="streak-block">
+      <span id="streak-num">0</span>
+      CONSECUTIVE STREAK
+    </div>
+    <div class="timer-wrap">
+      <div class="timer-label"><span>NEXT FLIP</span><span id="timer-s">110</span>s</div>
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
+  </div>
+  <div class="history-strip" id="history-strip"></div>
+  <div class="ad-slot" style="margin-top:16px">AD SLOT — 300x250</div>
+</div>
+<div class="game-footer">
+  <div class="game-footer-text">No real money. Problem Gambling: <a href="tel:18005224700">1-800-522-4700</a></div>
+</div>
+<script src="../js/sync.js"></script>
+<script>
+'use strict';
+const S = window.wbSync;
+const IV = window.WB.COIN;
+let lastRi = -1, streak = 0, lastSide = null;
+const history = [];
+
+function tick() {
+  const ri = S.roundIdx(IV);
+  const prog = S.roundProgress(IV);
+  const secs = S.secsLeft(IV);
+  document.getElementById('timer-s').textContent = secs;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = (100-prog*100)+'%';
+  fill.className = 'timer-fill'+(secs<=5?' danger':secs<=15?' warning':'');
+
+  if (ri !== lastRi) {
+    lastRi = ri;
+    const side = S.getCoin(ri);
+    streak = (side === lastSide) ? streak+1 : 1;
+    lastSide = side;
+
+    const coin = document.getElementById('the-coin');
+    coin.classList.remove('flipping');
+    void coin.offsetWidth;
+    coin.classList.add('flipping');
+
+    setTimeout(() => {
+      const res = document.getElementById('coin-result');
+      res.textContent = side;
+      res.className = 'result-main ' + (side==='HEADS' ? 'gold' : '');
+      document.getElementById('streak-num').textContent = streak;
+    }, 1380);
+
+    history.unshift(side);
+    if (history.length > 30) history.pop();
+    renderHistory();
+  }
+}
+
+function renderHistory() {
+  document.getElementById('history-strip').innerHTML =
+    history.map(h => `<span class="hist-pill ${h==='HEADS'?'o':''}">${h==='HEADS'?'H':'T'}</span>`).join('');
+}
+
+tick(); setInterval(tick, 500);
+</script>
+</body>
+</html>

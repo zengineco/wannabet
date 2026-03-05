@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Keno — Wanna Bet?</title>
+<link rel="stylesheet" href="../css/game-shell.css">
+<style>
+.keno-grid { grid-template-columns: repeat(10,1fr); max-width:540px; }
+.keno-cell.drawn:nth-child(4n+1) { background:linear-gradient(135deg,#b22234,#8b1c2c); }
+.keno-cell.drawn:nth-child(4n+2) { background:linear-gradient(135deg,#3c3b6e,#2a2958); }
+.keno-cell.drawn:nth-child(4n+3) { background:linear-gradient(135deg,#b22234,#8b1c2c); }
+.keno-cell.drawn:nth-child(4n)   { background:linear-gradient(135deg,#3c3b6e,#2a2958); }
+.keno-stats { display:flex; gap:24px; justify-content:center; margin-top:4px; }
+.kstat { text-align:center; }
+.kstat-val { font-family:var(--ff-sign); font-size:44px; font-weight:700; color:var(--wendys-yellow); display:block; line-height:1; text-shadow:0 0 20px rgba(255,184,28,0.4); }
+.kstat-lbl { font-family:var(--ff-mono); font-size:8px; letter-spacing:2px; color:rgba(255,255,255,0.3); text-transform:uppercase; }
+.america-banner { font-family:var(--ff-mono); font-size:9px; letter-spacing:3px; color:rgba(255,255,255,0.2); text-transform:uppercase; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="ad-slot" style="margin:0;border-left:none;border-right:none;border-top:none">AD SLOT — 728x90</div>
+<div class="game-header">
+  <a class="header-back" href="../index.html">&#8592; LOBBY</a>
+  <div class="header-title">&#127482;&#127480; KENO</div>
+  <div class="sync-badge">SYNCED</div>
+  <a class="header-logo" href="../index.html">WANNA BET?</a>
+</div>
+<div class="game-page">
+  <div class="ad-slot">AD SLOT — 728x90</div>
+  <div class="game-table" style="gap:16px">
+    <div class="game-subtitle">10 of 50 — Stars &amp; Stripes Edition</div>
+    <div class="keno-grid" id="keno-grid"></div>
+    <div class="keno-stats">
+      <div class="kstat"><span class="kstat-val" id="k-drawn">0</span><span class="kstat-lbl">Drawn</span></div>
+      <div class="kstat"><span class="kstat-val" id="k-last">—</span><span class="kstat-lbl">Latest</span></div>
+      <div class="kstat"><span class="kstat-val" id="k-remain">10</span><span class="kstat-lbl">Remaining</span></div>
+    </div>
+    <div class="america-banner">&#9733; &#9733; &#9733; AMERICA'S GAME &#9733; &#9733; &#9733;</div>
+    <div class="timer-wrap">
+      <div class="timer-label"><span>NEXT DRAW</span><span id="timer-s">80</span>s</div>
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
+  </div>
+  <div class="history-strip" id="history-strip"></div>
+  <div class="ad-slot" style="margin-top:16px">AD SLOT — 300x250</div>
+</div>
+<div class="game-footer">
+  <div class="game-footer-text">No real money. Problem Gambling: <a href="tel:18005224700">1-800-522-4700</a></div>
+</div>
+<script src="../js/sync.js"></script>
+<script>
+'use strict';
+const S = window.wbSync;
+const IV = window.WB.KENO;
+let lastRi = -1, revealInterval = null;
+const history = [];
+
+function buildGrid() {
+  const g = document.getElementById('keno-grid');
+  for (let i = 1; i <= 50; i++) {
+    const c = document.createElement('div');
+    c.className = 'keno-cell'; c.id = 'kc-'+i; c.textContent = i;
+    g.appendChild(c);
+  }
+}
+
+function tick() {
+  const ri = S.roundIdx(IV);
+  const prog = S.roundProgress(IV);
+  const secs = S.secsLeft(IV);
+  document.getElementById('timer-s').textContent = secs;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = (100-prog*100)+'%';
+  fill.className = 'timer-fill'+(secs<=5?' danger':secs<=15?' warning':'');
+
+  if (ri !== lastRi) {
+    lastRi = ri;
+    const drawn = S.getKeno(ri);
+    if (revealInterval) clearInterval(revealInterval);
+    document.querySelectorAll('.keno-cell').forEach(c => c.classList.remove('drawn'));
+    document.getElementById('k-drawn').textContent = '0';
+    document.getElementById('k-last').textContent = '—';
+    document.getElementById('k-remain').textContent = '10';
+    let idx = 0;
+    const revealMs = Math.floor(IV * 0.75 / drawn.length);
+    revealInterval = setInterval(() => {
+      if (idx >= drawn.length) { clearInterval(revealInterval); return; }
+      const n = drawn[idx];
+      const cell = document.getElementById('kc-'+n);
+      if (cell) cell.classList.add('drawn');
+      document.getElementById('k-drawn').textContent = idx+1;
+      document.getElementById('k-last').textContent = n;
+      document.getElementById('k-remain').textContent = drawn.length - idx - 1;
+      idx++;
+    }, revealMs);
+    history.unshift(drawn.slice(0,5).join(' ')+'...');
+    if (history.length > 8) history.pop();
+    renderHistory();
+  }
+}
+
+function renderHistory() {
+  document.getElementById('history-strip').innerHTML =
+    history.map(h => `<span class="hist-pill o">${h}</span>`).join('');
+}
+
+buildGrid(); tick(); setInterval(tick, 500);
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dice Haus — Wanna Bet?</title>
+<link rel="stylesheet" href="../css/game-shell.css">
+<style>
+.dice-haus-sign {
+  font-family:var(--ff-sign); font-size:clamp(28px,6vw,52px); font-weight:700;
+  letter-spacing:4px; color:var(--wendys-yellow);
+  text-shadow:0 0 20px rgba(255,184,28,0.5), 0 0 40px rgba(255,184,28,0.2);
+  margin-bottom:4px;
+}
+.dice-section { width:100%; max-width:540px; background:rgba(0,0,0,0.3); border:1px solid rgba(245,166,35,0.1); border-radius:10px; padding:18px; }
+.ds-title { font-family:var(--ff-sign); font-size:18px; font-weight:700; letter-spacing:3px; color:rgba(255,184,28,0.8); margin-bottom:14px; }
+.dice-row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+.dice-combo { font-family:var(--ff-sign); font-size:32px; font-weight:700; color:var(--wendys-yellow); margin-top:12px; text-align:center; min-height:40px; text-shadow:0 0 15px rgba(255,184,28,0.4); }
+.dice-sum { font-family:var(--ff-mono); font-size:9px; letter-spacing:2px; color:rgba(255,255,255,0.3); text-align:center; margin-top:4px; }
+.single-die-wrap { display:flex; flex-direction:column; align-items:center; gap:14px; }
+.single-big { width:100px; height:100px; border-radius:18px; }
+.single-big .pip { width:16px; height:16px; border-radius:50%; }
+</style>
+</head>
+<body>
+<div class="ad-slot" style="margin:0;border-left:none;border-right:none;border-top:none">AD SLOT — 728x90</div>
+<div class="game-header">
+  <a class="header-back" href="../index.html">&#8592; LOBBY</a>
+  <div class="header-title">&#127922; DICE HAUS</div>
+  <div class="sync-badge">SYNCED</div>
+  <a class="header-logo" href="../index.html">WANNA BET?</a>
+</div>
+<div class="game-page">
+  <div class="ad-slot">AD SLOT — 728x90</div>
+  <div class="game-table" style="gap:20px">
+    <div class="dice-haus-sign">&#127922; DICE HAUS &#127922;</div>
+    <div class="dice-section">
+      <div class="ds-title">5-DICE ROLL &mdash; Every 120s</div>
+      <div class="dice-row" id="dice-5-row"></div>
+      <div class="dice-combo" id="dice-combo">—</div>
+      <div class="dice-sum" id="dice-sum"></div>
+      <div style="margin-top:12px;">
+        <div class="timer-label" style="font-family:var(--ff-mono);font-size:8px;letter-spacing:3px;color:rgba(255,255,255,0.3);text-transform:uppercase;display:flex;justify-content:space-between;margin-bottom:4px"><span>NEXT ROLL</span><span id="timer-5s">120</span>s</div>
+        <div class="timer-bar"><div class="timer-fill" id="timer-5-fill"></div></div>
+      </div>
+    </div>
+    <div class="dice-section">
+      <div class="ds-title">1-DIE ROLL &mdash; Every 120s (offset)</div>
+      <div class="single-die-wrap">
+        <div class="die single-big" id="die-1" data-v="1">
+          <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+          <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+        </div>
+        <div class="result-main" id="die1-result" style="font-size:80px">—</div>
+      </div>
+    </div>
+    <!-- history -->
+    <div class="history-strip" id="history-5"></div>
+  </div>
+  <div class="ad-slot" style="margin-top:16px">AD SLOT — 300x250</div>
+</div>
+<div class="game-footer">
+  <div class="game-footer-text">No real money. Problem Gambling: <a href="tel:18005224700">1-800-522-4700</a></div>
+</div>
+<script src="../js/sync.js"></script>
+<script>
+'use strict';
+const S = window.wbSync;
+const IV5 = window.WB.DICE;
+const IV1 = window.WB.DICE + 5000; // 5s offset from 5-dice
+let last5 = -1, last1 = -1;
+const history5 = [];
+
+function buildDiceRow(count) {
+  const row = document.getElementById('dice-5-row');
+  if (!row || row.children.length === count) return;
+  row.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const d = document.createElement('div');
+    d.className = 'die'; d.id = 'die5-'+i; d.dataset.v = '1';
+    for (let p = 0; p < 6; p++) { const pip=document.createElement('div'); pip.className='pip'; d.appendChild(pip); }
+    row.appendChild(d);
+  }
+}
+
+function setDie(el, v) { el.dataset.v = v; }
+
+function animateDice5(values) {
+  for (let i = 0; i < 5; i++) {
+    const d = document.getElementById('die5-'+i);
+    if (!d) continue;
+    d.classList.remove('rolling'); void d.offsetWidth; d.classList.add('rolling');
+    setTimeout(() => { d.classList.remove('rolling'); setDie(d,values[i]); }, 600);
+  }
+}
+
+function tick() {
+  const ri5 = S.roundIdx(IV5);
+  const p5  = S.roundProgress(IV5);
+  const s5  = S.secsLeft(IV5);
+  document.getElementById('timer-5s').textContent = s5;
+  const f5 = document.getElementById('timer-5-fill');
+  f5.style.width = (100-p5*100)+'%';
+  f5.className = 'timer-fill'+(s5<=5?' danger':s5<=15?' warning':'');
+
+  if (ri5 !== last5) {
+    last5 = ri5;
+    const vals = S.getDice5(ri5);
+    const ev   = S.evalDice(vals);
+    animateDice5(vals);
+    setTimeout(() => {
+      document.getElementById('dice-combo').textContent = ev.name;
+      document.getElementById('dice-sum').textContent = 'SUM: '+ev.sum+' · VALUES: '+vals.join(' · ');
+    }, 620);
+    history5.unshift({ label: ev.name, tier: ev.tier });
+    if (history5.length > 15) history5.pop();
+    renderHistory5();
+  }
+
+  // 1-die (same interval, uses offset seed)
+  const ri1 = S.roundIdx(IV1);
+  if (ri1 !== last1) {
+    last1 = ri1;
+    const v = S.getDie1(ri1);
+    const d1 = document.getElementById('die-1');
+    d1.classList.remove('rolling'); void d1.offsetWidth; d1.classList.add('rolling');
+    setTimeout(() => { d1.classList.remove('rolling'); setDie(d1,v); document.getElementById('die1-result').textContent=v; }, 600);
+  }
+}
+
+function renderHistory5() {
+  document.getElementById('history-5').innerHTML =
+    history5.map(h => {
+      const cls = ['legendary','great'].includes(h.tier) ? 'g' : h.tier==='good' ? 'o' : '';
+      return `<span class="hist-pill ${cls}">${h.label}</span>`;
+    }).join('');
+}
+
+buildDiceRow(5); tick(); setInterval(tick, 500);
+</script>
+</body>
+</html>

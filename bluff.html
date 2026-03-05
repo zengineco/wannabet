@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blind Man's Bluff — Wanna Bet?</title>
+<link rel="stylesheet" href="../css/game-shell.css">
+<style>
+.bluff-layout { display:flex; flex-direction:column; align-items:center; gap:20px; width:100%; }
+.bluff-vs-row { display:flex; gap:28px; align-items:flex-end; justify-content:center; flex-wrap:wrap; }
+.bluff-player { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.bluff-player-name { font-family:var(--ff-mono); font-size:8px; letter-spacing:4px; color:rgba(255,255,255,0.3); text-transform:uppercase; }
+.bluff-vs-divider { font-family:var(--ff-sign); font-size:36px; font-weight:700; color:rgba(255,255,255,0.2); align-self:center; letter-spacing:2px; }
+.bluff-winner { font-family:var(--ff-sign); font-size:52px; font-weight:700; letter-spacing:5px; min-height:64px; transition:all 0.3s; }
+.bluff-winner.player-win { color:#00ff88; text-shadow:0 0 30px rgba(0,255,136,0.6); }
+.bluff-winner.house-win  { color:#ff4444; text-shadow:0 0 30px rgba(255,64,64,0.5); }
+.bluff-winner.tie-result { color:var(--wendys-yellow); text-shadow:0 0 20px rgba(255,184,28,0.4); }
+.bluff-phase { font-family:var(--ff-mono); font-size:9px; letter-spacing:3px; color:rgba(255,255,255,0.3); text-transform:uppercase; min-height:16px; }
+.card-lg { width:100px; height:140px; font-size:36px; }
+.card-lg .card-rank { font-size:36px; }
+.card-lg .card-suit { font-size:26px; }
+</style>
+</head>
+<body>
+<div class="ad-slot" style="margin:0;border-left:none;border-right:none;border-top:none">AD SLOT — 728x90</div>
+<div class="game-header">
+  <a class="header-back" href="../index.html">&#8592; LOBBY</a>
+  <div class="header-title">&#128584; BLIND MAN'S BLUFF</div>
+  <div class="sync-badge">SYNCED</div>
+  <a class="header-logo" href="../index.html">WANNA BET?</a>
+</div>
+<div class="game-page">
+  <div class="ad-slot">AD SLOT — 728x90</div>
+  <div class="game-table" style="gap:18px">
+    <div class="game-subtitle">Player vs House · Card Revealed vs Hidden · 100s Rounds</div>
+    <div class="bluff-layout">
+      <div class="bluff-vs-row">
+        <div class="bluff-player">
+          <div id="player-card" class="playing-card face-down card-lg">
+            <div class="card-rank" id="pc-rank"></div>
+            <div class="card-suit" id="pc-suit"></div>
+            <div class="card-corner" id="pc-tl"></div>
+            <div class="card-corner-br" id="pc-br"></div>
+          </div>
+          <div class="bluff-player-name">PLAYER</div>
+        </div>
+        <div class="bluff-vs-divider">VS</div>
+        <div class="bluff-player">
+          <div id="house-card" class="playing-card face-down card-lg">
+            <div class="card-rank" id="hc-rank"></div>
+            <div class="card-suit" id="hc-suit"></div>
+            <div class="card-corner" id="hc-tl"></div>
+            <div class="card-corner-br" id="hc-br"></div>
+          </div>
+          <div class="bluff-player-name">HOUSE</div>
+        </div>
+      </div>
+      <div class="bluff-winner" id="bluff-winner">—</div>
+      <div class="bluff-phase" id="bluff-phase">DEALING...</div>
+    </div>
+    <div class="timer-wrap">
+      <div class="timer-label"><span>NEXT HAND</span><span id="timer-s">100</span>s</div>
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
+  </div>
+  <div class="history-strip" id="history-strip"></div>
+  <div class="ad-slot" style="margin-top:16px">AD SLOT — 300x250</div>
+</div>
+<div class="game-footer">
+  <div class="game-footer-text">No real money. Problem Gambling: <a href="tel:18005224700">1-800-522-4700</a></div>
+</div>
+<script src="../js/sync.js"></script>
+<script>
+'use strict';
+const S = window.wbSync;
+const IV = window.WB.BLUFF;
+let lastRi = -1;
+const history = [];
+
+function setCard(prefix, card, visible) {
+  const el = document.getElementById(prefix === 'p' ? 'player-card' : 'house-card');
+  if (!visible) {
+    el.className = 'playing-card face-down card-lg';
+    ['rank','suit','tl','br'].forEach(id => {
+      const e = document.getElementById(prefix+'c-'+id); if(e) e.textContent='';
+    });
+    return;
+  }
+  const isRed = S.RED_SUITS.has(card.suit);
+  el.className = 'playing-card face-up card-lg ' + (isRed ? 'red-suit' : 'black-suit');
+  const rn = S.rankName(card.rank);
+  const sym = S.SUIT_SYMS[card.suit];
+  document.getElementById(prefix+'c-rank').textContent = rn;
+  document.getElementById(prefix+'c-suit').textContent = sym;
+  document.getElementById(prefix+'c-tl').textContent = rn;
+  document.getElementById(prefix+'c-br').textContent = rn;
+}
+
+function tick() {
+  const ri = S.roundIdx(IV);
+  const prog = S.roundProgress(IV);
+  const secs = S.secsLeft(IV);
+  document.getElementById('timer-s').textContent = secs;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = (100-prog*100)+'%';
+  fill.className = 'timer-fill'+(secs<=5?' danger':secs<=15?' warning':'');
+
+  const hand  = S.getBluffHand(ri);
+  const phase = S.getBluffPhase(prog);
+  const win   = document.getElementById('bluff-winner');
+  const ph    = document.getElementById('bluff-phase');
+
+  if (phase === 'deal') {
+    setCard('p', null, false); setCard('h', null, false);
+    win.textContent = '—'; win.className = 'bluff-winner';
+    ph.textContent = 'DEALING...';
+  } else if (phase === 'player') {
+    setCard('p', hand.player, true); setCard('h', null, false);
+    win.textContent = '?'; win.className = 'bluff-winner';
+    ph.textContent = "PLAYER'S CARD REVEALED — HOUSE STILL HIDDEN";
+  } else if (phase === 'both') {
+    setCard('p', hand.player, true); setCard('h', hand.house, true);
+    win.textContent = '...'; win.className = 'bluff-winner';
+    ph.textContent = 'BOTH REVEALED — JUDGING...';
+  } else {
+    setCard('p', hand.player, true); setCard('h', hand.house, true);
+    const pr = S.rankName(hand.player.rank);
+    const hr = S.rankName(hand.house.rank);
+    if (hand.winner === 'player') {
+      win.textContent = 'PLAYER WINS'; win.className = 'bluff-winner player-win';
+      ph.textContent = pr + ' beats ' + hr;
+    } else if (hand.winner === 'house') {
+      win.textContent = 'HOUSE WINS'; win.className = 'bluff-winner house-win';
+      ph.textContent = hr + ' beats ' + pr;
+    } else {
+      win.textContent = 'PUSH'; win.className = 'bluff-winner tie-result';
+      ph.textContent = 'Both ' + pr + ' — draw';
+    }
+  }
+
+  if (ri !== lastRi && phase === 'result') {
+    lastRi = ri;
+    const short = hand.winner === 'player' ? 'P WINS' : hand.winner === 'house' ? 'H WINS' : 'PUSH';
+    history.unshift({ label: short, winner: hand.winner });
+    if (history.length > 20) history.pop();
+    renderHistory();
+  }
+}
+
+function renderHistory() {
+  document.getElementById('history-strip').innerHTML =
+    history.map(h => {
+      const cls = h.winner==='player' ? 'g' : h.winner==='house' ? 'r' : 'o';
+      return `<span class="hist-pill ${cls}">${h.label}</span>`;
+    }).join('');
+}
+
+tick(); setInterval(tick, 500);
+</script>
+</body>
+</html>

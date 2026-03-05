@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roulette — Wanna Bet?</title>
+<link rel="stylesheet" href="../css/game-shell.css">
+<style>
+.roulette-layout { display:flex; flex-direction:column; align-items:center; gap:20px; width:100%; }
+#roulette-canvas { border-radius:50%; display:block; box-shadow:0 0 0 5px rgba(245,130,0,0.3),0 0 50px rgba(200,80,0,0.2); flex-shrink:0; }
+.roul-grid { display:grid; grid-template-columns:repeat(12,1fr); gap:2px; width:100%; max-width:480px; }
+.rcell { font-family:var(--ff-mono); font-size:10px; padding:6px 2px; text-align:center; border-radius:3px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); color:rgba(255,255,255,0.3); transition:all 0.25s; }
+.rcell.r { color:#ff6666; background:rgba(255,64,64,0.07); border-color:rgba(255,64,64,0.15); }
+.rcell.b { color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
+.rcell.z { color:#00ff88; background:rgba(0,255,136,0.07); border-color:rgba(0,255,136,0.2); }
+.rcell.lit { background:rgba(245,166,35,0.25)!important; border-color:#f5a623!important; color:#f5a623!important; box-shadow:0 0 10px rgba(245,166,35,0.3); }
+</style>
+</head>
+<body>
+<div class="ad-slot" style="margin:0;border-left:none;border-right:none;border-top:none">AD SLOT — 728x90</div>
+<div class="game-header">
+  <a class="header-back" href="../index.html">&#8592; LOBBY</a>
+  <div class="header-title">&#9898; ROULETTE</div>
+  <div class="sync-badge">SYNCED</div>
+  <a class="header-logo" href="../index.html">WANNA BET?</a>
+</div>
+
+<div class="game-page">
+  <div class="ad-slot">AD SLOT — 728x90 BANNER</div>
+
+  <div class="game-table">
+    <div class="game-subtitle">European Single Zero · 37 Numbers</div>
+    <div class="roulette-layout">
+      <canvas id="roulette-canvas" width="560" height="560" style="width:280px;height:280px"></canvas>
+      <div>
+        <div class="result-main" id="roul-num" style="font-size:96px">—</div>
+        <div class="result-label" id="roul-label">Awaiting spin...</div>
+        <div class="roul-grid" id="roul-grid" style="margin-top:16px"></div>
+      </div>
+    </div>
+    <div class="timer-wrap">
+      <div class="timer-label"><span>NEXT SPIN</span><span id="timer-s">60</span>s</div>
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
+  </div>
+
+  <div class="history-strip" id="history-strip"></div>
+  <div class="ad-slot" style="margin-top:16px">AD SLOT — 300x250</div>
+</div>
+
+<div class="game-footer">
+  <div class="game-footer-text">
+    No real money wagered. For entertainment only.<br>
+    Problem Gambling Helpline: <a href="tel:18005224700">1-800-522-4700</a> · <a href="https://www.ncpgambling.org" target="_blank">ncpgambling.org</a>
+  </div>
+</div>
+
+<script src="../js/sync.js"></script>
+<script>
+'use strict';
+const { roundIdx, secsLeft, roundProgress, getRouletteResult, roulColor, ROUL_RED, WHEEL_ORDER, wbSync } = window;
+const S = window.wbSync;
+const IV = window.WB.ROULETTE;
+
+let canvas, ctx, angle = -Math.PI / 2;
+let lastRound = -1, spinning = false, rafId = null;
+const history = [];
+
+function initCanvas() {
+  canvas = document.getElementById('roulette-canvas');
+  const dpr = window.devicePixelRatio || 1;
+  const disp = 280;
+  canvas.width  = disp * dpr;
+  canvas.height = disp * dpr;
+  canvas.style.width  = disp + 'px';
+  canvas.style.height = disp + 'px';
+  ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  buildGrid();
+  draw(angle);
+}
+
+function buildGrid() {
+  const grid = document.getElementById('roul-grid');
+  const zero = document.createElement('div');
+  zero.className = 'rcell z'; zero.dataset.n = '0'; zero.textContent = '0';
+  zero.style.gridColumn = '1 / -1'; grid.appendChild(zero);
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 12; col++) {
+      const num = row + col * 3 + 1;
+      const c = document.createElement('div');
+      c.className = 'rcell ' + (ROUL_RED.has(num) ? 'r' : 'b');
+      c.dataset.n = num; c.textContent = num; grid.appendChild(c);
+    }
+  }
+}
+
+function draw(a) {
+  const W = 280, H = 280, cx = W/2, cy = H/2;
+  const R = cx * 0.92, n = WHEEL_ORDER.length;
+  const slice = (2 * Math.PI) / n;
+  ctx.clearRect(0, 0, W, H);
+
+  // outer rim
+  ctx.beginPath(); ctx.arc(cx, cy, R+5, 0, 2*Math.PI);
+  ctx.strokeStyle = 'rgba(255,130,0,0.7)'; ctx.lineWidth = 8; ctx.stroke();
+
+  // pockets
+  for (let i = 0; i < n; i++) {
+    const num = WHEEL_ORDER[i];
+    const mid = a + i * slice;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R-6, mid - slice/2, mid + slice/2);
+    ctx.closePath();
+    ctx.fillStyle = num === 0 ? '#083818' : ROUL_RED.has(num) ? '#5c0808' : '#0e0e0e';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(245,140,0,0.18)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+    // label
+    const lr = R * 0.78;
+    ctx.save();
+    ctx.translate(cx + lr*Math.cos(mid), cy + lr*Math.sin(mid));
+    ctx.rotate(mid + Math.PI/2);
+    ctx.fillStyle = num === 0 ? '#30e860' : ROUL_RED.has(num) ? '#ff7070' : '#d0d0d0';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(num, 0, 0);
+    ctx.restore();
+  }
+
+  // inner ring + hub
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.55, 0, 2*Math.PI);
+  ctx.strokeStyle = 'rgba(245,140,0,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+  const hub = ctx.createRadialGradient(cx,cy,0,cx,cy,R*0.28);
+  hub.addColorStop(0,'#3a1a00'); hub.addColorStop(1,'#0a0500');
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.28, 0, 2*Math.PI);
+  ctx.fillStyle = hub; ctx.fill();
+  ctx.strokeStyle = 'rgba(245,140,0,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'rgba(245,166,35,0.5)';
+  ctx.font = "bold 18px 'Oswald',Impact,sans-serif";
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('WB?', cx, cy);
+
+  // ball indicator (fixed, points at top)
+  ctx.save(); ctx.translate(cx, cy);
+  ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(0, -(R-2));
+  ctx.lineTo(-5, -(R+10));
+  ctx.lineTo(5,  -(R+10));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function numberToAngle(num) {
+  const idx = WHEEL_ORDER.indexOf(num);
+  const n = WHEEL_ORDER.length;
+  return -Math.PI/2 - idx * (2*Math.PI/n);
+}
+
+function spin(num, ri) {
+  const target = numberToAngle(num);
+  const spins  = 6 + (ri % 5);
+  const tgt    = ((target % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+  const start  = ((angle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+  const finalAngle = tgt - spins * 2 * Math.PI;
+  spinning = true;
+  const t0 = performance.now(), dur = 3500;
+  const s0 = angle;
+  function frame(now) {
+    const t = Math.min(1, (now-t0)/dur);
+    const ease = 1 - Math.pow(1-t, 3);
+    angle = s0 + (finalAngle - s0) * ease;
+    draw(angle);
+    if (t < 1) { rafId = requestAnimationFrame(frame); }
+    else {
+      angle = tgt;
+      spinning = false;
+      showResult(num);
+    }
+  }
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(frame);
+}
+
+function showResult(num) {
+  const col = roulColor(num);
+  const el = document.getElementById('roul-num');
+  el.textContent = num;
+  el.className = 'result-main ' + col;
+  document.getElementById('roul-label').textContent =
+    col === 'red' ? 'RED' : col === 'green' ? 'GREEN — ZERO' : 'BLACK';
+  document.querySelectorAll('.rcell').forEach(c => c.classList.remove('lit'));
+  const t = document.querySelector(`.rcell[data-n="${num}"]`);
+  if (t) t.classList.add('lit');
+}
+
+function tick() {
+  const ri = S.roundIdx(IV);
+  const prog = S.roundProgress(IV);
+  const secs = S.secsLeft(IV);
+
+  document.getElementById('timer-s').textContent = secs;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = (100 - prog*100) + '%';
+  fill.className = 'timer-fill' + (secs <= 5 ? ' danger' : secs <= 15 ? ' warning' : '');
+
+  const num = S.getRouletteResult(ri);
+  if (num !== lastRound) {
+    lastRound = num;
+    spin(num, ri);
+    history.unshift({ num, col: roulColor(num) });
+    if (history.length > 20) history.pop();
+    renderHistory();
+  }
+  if (!spinning) draw(angle);
+}
+
+function renderHistory() {
+  const el = document.getElementById('history-strip');
+  el.innerHTML = history.map(h => {
+    const cls = h.col === 'red' ? 'r' : h.col === 'green' ? 'g' : '';
+    return `<span class="hist-pill ${cls}">${h.num}</span>`;
+  }).join('');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initCanvas();
+  tick();
+  setInterval(tick, 500);
+});
+</script>
+</body>
+</html>
